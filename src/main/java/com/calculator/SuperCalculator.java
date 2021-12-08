@@ -3,32 +3,22 @@ package com.calculator;
 import java.util.Scanner;
 import java.util.Stack;
 
+import com.calculator.domain.Operator;
 import com.calculator.exceptions.CalculatorExceptions;
-import com.calculator.util.OperatorsUtil;
+import com.calculator.util.InputParser;
 
 public class SuperCalculator {
 
 	private Stack<Character> stackOfOperators;
 	private Stack<Double> stackOfOperands;
-	private OperatorsUtil operators;
 
 	public SuperCalculator() {
 		stackOfOperators = new Stack<Character>();
 		stackOfOperands = new Stack<Double>();
-		operators = new OperatorsUtil();
-	}
-
-	private String changeStringOperators(String input) {
-		for (String operatorkey : operators.getAllOperators().keySet()) {
-			if (input.toLowerCase().contains(operatorkey)) {
-				input = input.replace(operatorkey, operators.getAllOperators()
-						.get(operatorkey));
-			}
-		}
-		return input;
 	}
 
 	private void processOperator(char t) {
+		 Operator opr = Operator.getOperator(t);
 		double a, b;
 		if (stackOfOperands.empty()) {
 			System.out.println("Expression error.");
@@ -38,14 +28,13 @@ public class SuperCalculator {
 			stackOfOperands.pop();
 		}
 		if (stackOfOperands.empty()) {
-			System.out.println("Expression error.");
-			throw new CalculatorExceptions("Expression error.");
+			a = 0;
 		} else {
 			a = stackOfOperands.peek();
 			stackOfOperands.pop();
 		}
 		try {
-			double r = operators.performOperation(t, a, b);
+			double r = opr.performOperation(a, b);
 			stackOfOperands.push(r);
 		} catch (Exception e) {
 			System.out.println();
@@ -53,6 +42,7 @@ public class SuperCalculator {
 		}
 	}
 
+	@SuppressWarnings("unused")
 	public static boolean isNumeric(String strNum) {
 		if (strNum == null) {
 			return false;
@@ -68,46 +58,43 @@ public class SuperCalculator {
 	public void processInput(String input) {
 
 		// Change the operators from string to character (plus -> +, minus -> -)
-		input = changeStringOperators(input);
-
-		// The tokens that make up the input
-		String[] tokens = input.split(" ");
-
+		input = InputParser.getParser().parse(input);
+		
 		// Processing all the input tokens
-		for (int n = 0; n < tokens.length; n++) {
-			String nextToken = tokens[n];
-			if (nextToken.length() != 1) {
-				if (isNumeric(nextToken)) {
-					double value = Double.parseDouble(nextToken);
-					stackOfOperands.push(value);
-					continue;
-				}
-			} else {
-				char ch = nextToken.charAt(0);
+		boolean previousCharIsOperand = false;
+		for ( int i = 0; i < input.length(); i++){
+			char ch = input.charAt(i);
 				if (ch >= '0' && ch <= '9') {
-					double value = Double.parseDouble(nextToken);
+					Double previousChar = new Double("0");
+					if(previousCharIsOperand){
+						previousChar = stackOfOperands.peek();
+						previousChar = previousChar*10;
+						stackOfOperands.pop();
+					}
+					double value = (double) (ch - '0');
+					value = previousChar + value ;
 					stackOfOperands.push(value);
-				} else if (operators.isOperator(ch)) {
+					previousCharIsOperand = true;
+				} else if (Operator.isOperator(ch)) {
 					if (stackOfOperators.empty()
-							|| operators.fetchPrecedence(ch) > operators
-									.fetchPrecedence(stackOfOperators.peek())) {
+							|| Operator.getPrecedence(ch) > Operator.getPrecedence(stackOfOperators.peek())) {
 						stackOfOperators.push(ch);
 					} else {
 						while (!stackOfOperators.empty()
-								&& operators.fetchPrecedence(ch) <= operators
-										.fetchPrecedence(stackOfOperators
-												.peek())) {
+								&& Operator.getPrecedence(ch) <= Operator.getPrecedence(stackOfOperators.peek())) {
 							char toProcess = stackOfOperators.peek();
 							stackOfOperators.pop();
 							processOperator(toProcess);
 						}
 						stackOfOperators.push(ch);
 					}
-				} else if (ch == '(') {
+					previousCharIsOperand = false;
+				} else if (ch == CalculatorConstants.BRACKETS.OPEN.asChar()) {
 					stackOfOperators.push(ch);
-				} else if (ch == ')') {
+					previousCharIsOperand = false;
+				} else if (ch == CalculatorConstants.BRACKETS.CLOSE.asChar()) {
 					while (!stackOfOperators.empty()
-							&& operators.isOperator(stackOfOperators.peek())) {
+							&& Operator.isOperator(stackOfOperators.peek())) {
 						char toProcess = stackOfOperators.peek();
 						stackOfOperators.pop();
 						processOperator(toProcess);
@@ -120,13 +107,14 @@ public class SuperCalculator {
 						throw new CalculatorExceptions(
 								"Error: unbalanced parenthesis.");
 					}
+					previousCharIsOperand = false;
 				}
-			}
+//			}
 
 		}
 		// Empty out the stackOfOperators at the end of the input
 		while (!stackOfOperators.empty()
-				&& operators.isOperator(stackOfOperators.peek())) {
+				&& Operator.isOperator(stackOfOperators.peek())) {
 			char toProcess = stackOfOperators.peek();
 			stackOfOperators.pop();
 			processOperator(toProcess);

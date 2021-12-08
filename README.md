@@ -1,4 +1,4 @@
-#Super calculator
+Super calculator
 
 1. Import the project into IDE. 
 2. Run file 'SuperCalculator\src\main\java\com\calculator\SuperCalculator.java' with expression as arguments or enter the expression in the console screen after starting the program.
